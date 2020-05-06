@@ -1,5 +1,7 @@
 # yael
 
+![Go](https://github.com/snicol/yael/workflows/Go/badge.svg)
+
 Yet Another Error Library
 
 > Yael (Hebrew: יעל‎, pronounced [jaˈʔel]; also spelled Jael) is a female given
