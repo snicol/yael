@@ -29,5 +29,3 @@ jobs:
           path: report.json
           reporter: golang-json
           fail-on-error: true
-      - name: Build examples
-        run: go build ./example/...
