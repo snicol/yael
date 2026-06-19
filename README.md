@@ -1,39 +1,49 @@
 # yael
 
-![Go](https://github.com/snicol/yael/workflows/Go/badge.svg)
+![Go](https://github.com/snicol/yael/workflows/test/badge.svg)
 
-Yet Another Error Library
-
-> Yael (Hebrew: יעל‎, pronounced [jaˈʔel]; also spelled Jael) is a female given
-name, from the Hebrew meaning "Nubian Ibex".
-
-Similar code is used across a lot of my side projects so I decided to
-standardise it.
+Yet Another Error Library, used for structured sentinel errors. Zero dependencies.
 
 ## Usage
 
 ```go
-// Errors with metadata
+// Create errors
 err := yael.New("permission_denied").WithMeta("user", 123)
 
-// Wrapping errors
+// Wrap one or more reasons
 notAdminErr := yael.New("not_admin")
-err = err.WithReason(notAdminErr)
+noRoleErr   := yael.New("no_role")
+err = err.WithReasons(notAdminErr, noRoleErr)
 
 // Satisfies Go's error interface
 fmt.Println(err) // permission_denied
 
-// Also Go 1.13+ error wrapping
+// Sentinel matching by code (errors.Is traverses all reasons)
 errors.Is(err, notAdminErr) // true
+errors.Is(err, noRoleErr)   // true
 
-// JSON representable:
+// JSON representable
 {
     "code": "permission_denied",
-    "meta": {
-        "user": 123
-    },
-    "reason": {
-        "code": "not_admin"
-    }
+    "meta": { "user": 123 },
+    "reasons": [
+        { "code": "not_admin" },
+        { "code": "no_role" }
+    ]
 }
 ```
+
+## Built-in error codes
+
+| Constant             | Code                  | HTTP |
+|----------------------|-----------------------|------|
+| `BadRequest`         | `bad_request`         | 400  |
+| `Unauthorized`       | `unauthorized`        | 401  |
+| `Forbidden`          | `forbidden`           | 403  |
+| `NotFound`           | `not_found`           | 404  |
+| `MethodNotAllowed`   | `method_not_allowed`  | 405  |
+| `Conflict`           | `conflict`            | 409  |
+| `NotImplemented`     | `not_implemented`     | 501  |
+| `ServiceUnavailable` | `service_unavailable` | 503  |
+
+Use `yael.StatusCode(e)` to map an error to its HTTP status code.

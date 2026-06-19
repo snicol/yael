@@ -6,39 +6,88 @@ import (
 	"testing"
 
 	"github.com/snicol/yael"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestMarshalUnmarshal(t *testing.T) {
-	src := yael.New("test_error").WithMeta("foo", "bar").WithReason(yael.New("inner_error"))
+	src := yael.New("test_error").WithMeta("foo", "bar").WithReasons(yael.New("inner_error"))
 
 	o, err := json.Marshal(src)
-	assert.Nil(t, err)
-	assert.Equal(t, `{"code":"test_error","reason":{"code":"inner_error"},"meta":{"foo":"bar"}}`, string(o))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	want := `{"code":"test_error","reasons":[{"code":"inner_error"}],"meta":{"foo":"bar"}}`
+	if string(o) != want {
+		t.Errorf("got %s, want %s", o, want)
+	}
 
 	var dst *yael.E
+	if err := json.Unmarshal(o, &dst); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
 
-	assert.Nil(t, json.Unmarshal(o, &dst))
+	if dst.Code != src.Code {
+		t.Errorf("code: got %s, want %s", dst.Code, src.Code)
+	}
+}
 
-	assert.Equal(t, src, dst)
+func TestIs(t *testing.T) {
+	sentinel := yael.New("not_found")
+	other := yael.New("not_found")
+
+	if !errors.Is(other, sentinel) {
+		t.Error("expected errors with the same code to match")
+	}
+
+	wrapped := yael.New("wrapper").WithReasons(other)
+	if !errors.Is(wrapped, sentinel) {
+		t.Error("expected sentinel to match through wrapping")
+	}
 }
 
 func TestWrap(t *testing.T) {
 	e2 := yael.New("another_error")
-	e1 := yael.New("test_error").WithReason(e2)
+	e1 := yael.New("test_error").WithReasons(e2)
 
-	assert.Equal(t, true, errors.Is(e1, e2))
-	assert.Equal(t, false, errors.Is(e2, e1))
+	if !errors.Is(e1, e2) {
+		t.Error("expected e1 to wrap e2")
+	}
 
-	e3 := yael.New("parent_error").WithReason(e1)
-	assert.Equal(t, true, errors.Is(e3, e2))
+	if errors.Is(e2, e1) {
+		t.Error("expected e2 not to wrap e1")
+	}
+
+	e3 := yael.New("parent_error").WithReasons(e1)
+	if !errors.Is(e3, e2) {
+		t.Error("expected e3 to transitively wrap e2")
+	}
+}
+
+func TestWrapMultiple(t *testing.T) {
+	e1 := yael.New("error_one")
+	e2 := yael.New("error_two")
+	e3 := yael.New("error_three")
+
+	combined := yael.New("combined").WithReasons(e1, e2, e3)
+
+	if !errors.Is(combined, e1) {
+		t.Error("expected combined to contain e1")
+	}
+
+	if !errors.Is(combined, e2) {
+		t.Error("expected combined to contain e2")
+	}
+
+	if !errors.Is(combined, e3) {
+		t.Error("expected combined to contain e3")
+	}
 }
 
 func TestError(t *testing.T) {
 	e := yael.New("some_error")
 
-	var i interface{} = e
-	_, ok := i.(error)
-	assert.True(t, ok)
+	var i any = e
+	if _, ok := i.(error); !ok {
+		t.Error("expected E to implement error interface")
+	}
 }
